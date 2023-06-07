@@ -3,5 +3,27 @@
   "dependencies": {
   },
   "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8"
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/drive.addons.metadata.readonly",
+    "https://www.googleapis.com/auth/script.locale",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/script.send_mail"
+  ],
+  "addOns": {
+    "common": {
+      "name": "EML Reader",
+      "logoUrl": "https://cdn-icons-png.flaticon.com/512/2305/2305961.png",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "onHomepage",
+        "enabled": true
+      }
+    },
+    "drive": {
+      "onItemsSelectedTrigger": {
+        "runFunction": "onFileSelected"
+      }
+    }
+  }
 }
