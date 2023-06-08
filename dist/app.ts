@@ -61,8 +61,11 @@ function describeEml(emlContent: string): string {
 function convertEMLToJSON(text: string) {
   const result = [];
   const boundaries = findEmlBoundaries(text);
-  const parts = boundaries.length > 0 ?
-    text.split(new RegExp(boundaries.map(x => x + "\r?\n?").join('|'))).filter(x => x) : [text];
+  const boundariesSplitter = new RegExp(boundaries.map(x => x + "\r?\n?").join('|'));
+  const notEmpty = x => x;
+  const parts = boundaries.length > 0
+                  ? text.split(boundariesSplitter).filter(notEmpty)
+                  : [text];
   
   for(let p=0; p<parts.length; p++) {
     const lines = parts[p].split('\n');
