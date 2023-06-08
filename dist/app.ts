@@ -1,17 +1,68 @@
-function onFileSelected(e) {
-  const items = e.drive.selectedItems;
-  const item = items[0];
-  if(item.mimeType !== "message/rfc822")
-    return onHomepage();
-  const card = createCard(getEmlContents(item.id)); // analyse the first of the selected items
-  return [card.build()];
+interface FileSelectedEvent {
+  userTimezone: UserTimezone;
+  commonEventObject: CommonEventObject;
+  drive: Drive;
+  hostApp: string;
+  clientPlatform: string;
+  userLocale: string;
+  userCountry: string;
 }
+
+interface UserTimezone {
+  id: string;
+  offSet: string;
+}
+interface CommonEventObject {
+  userLocale: string;
+  platform: string;
+  hostApp: string;
+  timeZone: Timezone;
+}
+
+interface Timezone {
+  id: string;
+  offset: number;
+}
+interface Drive {
+  selectedItems: SelectedItem[];
+  activeCursorItem: SelectedItem;
+}
+
+interface SelectedItem {
+  title: string;
+  id: string;
+  mimeType: string;
+  iconUrl: string;
+}
+
 
 function onHomepage() {
-  return [createCard('Please select an .EML file').build()];
+  return createCard('Welcome to EML Reader.\nPlease select an .EML file');
 }
 
-function getFileContents(id) {
+// eslint-disable-next-line
+function onFileSelected(e: FileSelectedEvent) {
+  const MIMETYPE_EML = 'message/rfc822';
+  const item = e.drive.selectedItems[0]; // take first item (when multiple files are selected)
+
+  if(isBiggerThan4GB(item.id))
+    return createCard("Error message: file is bigger than 4GB.");
+  if(item.mimeType !== MIMETYPE_EML)
+    return onHomepage();
+  
+  const emlContent = getFileContent(item.id);
+  const description = describeEml(emlContent);
+  return createCard(description);
+}
+
+function isBiggerThan4GB(fileId: string) {
+  const maxSize = 4 * 1024 * 1024 * 1024;
+  const file = DriveApp.getFileById(fileId);
+  const fileSize = file.getSize();
+  return fileSize > maxSize;
+}
+
+function getFileContent(id: string) {
   try {
     const file = DriveApp.getFileById(id);
     return file.getBlob().getDataAsString();
@@ -20,27 +71,33 @@ function getFileContents(id) {
   }
 }
 
-function getEmlContents(id) {
-  const emlContent = getFileContents(id);
-  return analyseEmlContent(emlContent);
-}
-
-function analyseEmlContent(emlContent) {
+function describeEml(emlContent: string): string {
   const emailData = convertEMLToJSON(emlContent);
-  console.log(emailData);
-  const emailPlainText = emailData.find(x => x['Content-Type']?.indexOf('text/plain') === 0 && (x['Content-Disposition'] ? !x['Content-Disposition'].includes("attachment") : true));
-  const emailHtml = emailData.find(x => x['Content-Type']?.indexOf('text/html') === 0 && !x['Content-Disposition']?.includes("attachment"));
-  const content = emailPlainText ? emailPlainText.Content : emailHtml ? stripHtmlTags(emailHtml.Content) : '';
-  const attachments = emailData.filter(x => x['Content-Disposition']?.indexOf("attachment") === 0); // counts both inline and attachment types, but not text and html inline
+
+  const isAttachment = 
+    part => part['Content-Disposition']?.startsWith("attachment");
+
+  const isPlainTextEmail =
+    part => !isAttachment(part) && part['Content-Type']?.startsWith('text/plain');
+
+  const isHtmlEmail =
+    part => !isAttachment(part) && part['Content-Type']?.startsWith('text/html');
+
+  const emailPlainText = emailData.find(isPlainTextEmail);
+  const emailHtml = emailData.find(isHtmlEmail);
+  
+  const content = emailPlainText?.Content || stripHtmlTags(emailHtml?.Content || '');
+  
+  const attachments = emailData.filter(isAttachment);
+
   return `Subject: ${emailData[0].Subject}\nFrom: ${emailData[0].From}\nDate: ${emailData[0].Date}\nAttachments: ${attachments.length}\n\nBody: \n\n${content}`;
 }
 
-function convertEMLToJSON(text) {
+function convertEMLToJSON(text: string) {
   const result = [];
   const boundaries = findEmlBoundaries(text);
   const parts = boundaries.length > 0 ?
     text.split(new RegExp(boundaries.map(x => x + "\r?\n?").join('|'))).filter(x => x) : [text];
-    // if there are no boundaries, just return the whole text as one part
   
   for(let p=0; p<parts.length; p++) {
     const lines = parts[p].split('\n');
@@ -61,7 +118,7 @@ function convertEMLToJSON(text) {
 }
 
 // .eml can contain multiple boundaries (nested), so we need to find them all
-function findEmlBoundaries(text) {
+function findEmlBoundaries(text: string) {
   const boundaryRegex = /boundary=(?:"([^"]+)"|([^;\n\r]+))/gi;
   const boundaryMatches = text.match(boundaryRegex);
   if (boundaryMatches) {
@@ -78,12 +135,12 @@ function findEmlBoundaries(text) {
   }
 }
 
-function stripHtmlTags(html) {
+function stripHtmlTags(html: string) {
   const plainText = html.replace(/<[^>]+>/g, '');
   return decodeEntities(plainText);
 }
 
-function decodeEntities(text) {
+function decodeEntities(text: string) {
   const entities = [
     ['amp', '&'],
     ['apos', '\''],
@@ -101,9 +158,9 @@ function decodeEntities(text) {
   return text;
 }
 
-function createCard(text) {
+function createCard(text: string) {
   const textParagraph = CardService.newTextParagraph().setText(text);
   const section = CardService.newCardSection().addWidget(textParagraph);
   const card = CardService.newCardBuilder().addSection(section);
-  return card;
+  return [card.build()];
 }
