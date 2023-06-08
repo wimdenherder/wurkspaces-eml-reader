@@ -14,10 +14,10 @@ npm i && npm install:husky
 ## Install as Drive Addon
 
 - In Google Apps Script Editor, go to settings. 
-Under 'Google Cloud Platform-project (GCP)' Link to project number of google cloud project
-This google cloud project should have Drive Api enabled and consent Oauth screen settings
+Under 'Google Cloud Platform-project (GCP)' Link to a project number of google cloud project
+This google cloud project should have Drive Api enabled and have valid 'consent Oauth screen' settings
 - Then click "Test implementation" -> Install implementation
-- Go to drive.google.com -> any folder with .eml files in it to test it
+- Go to drive.google.com -> any folder with .eml files to test it
 
 ## Run tests
 
